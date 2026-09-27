@@ -1,59 +1,89 @@
-import { ReviewReport } from '../types/report-types';
+import { ReviewReport } from '../types/report-types.js';
 
-/**
- * Report Generator
- * Converts ReviewReport to various output formats (Markdown, HTML, JSON)
- */
 export class ReportGenerator {
+  /**
+   * Alias methods for generateMarkdownReport
+   */
+  generateMarkdown(report: ReviewReport): string {
+    return this.generateMarkdownReport(report);
+  }
+
+  /**
+   * Alias methods for generateHTMLReport
+   */
+  generateHtml(report: ReviewReport): string {
+    return this.generateHTMLReport(report);
+  }
+
+  generateHTML(report: ReviewReport): string {
+    return this.generateHTMLReport(report);
+  }
+
+  /**
+   * Alias methods for generateJSONReport
+   */
+  generateJson(report: ReviewReport): string {
+    return this.generateJSONReport(report);
+  }
+
+  generateJSON(report: ReviewReport): string {
+    return this.generateJSONReport(report);
+  }
+
   /**
    * Generate a Markdown report for PR comments
    */
   generateMarkdownReport(report: ReviewReport): string {
-    const { summary, recommendations, fileReviews } = report;
+    const { summary, recommendations = [], fileReviews = [] } = report || {};
 
-    const formattedRecs = recommendations.slice(0, 5).map((rec, idx) => {
-      const emoji = {
+    const formattedRecs = (recommendations || []).slice(0, 5).map((rec, idx) => {
+      const emoji: Record<string, string> = {
         critical: '🚨',
         high: '⚠️',
-        medium: '📝',
-        low: '💡'
-      }[rec.priority];
+        medium: '📌',
+        low: '💡',
+      };
+      const priorityEmoji = emoji[rec.priority] || '📌';
 
-      return `${idx + 1}. ${emoji} **${rec.category}**: ${rec.description}
-   - Files: ${rec.files.join(', ')}`;
+      return `${idx + 1}. ${priorityEmoji} **${rec.category || 'Recommendation'}**: ${rec.description}${
+        rec.files && rec.files.length > 0 ? `\n   - Files: ${rec.files.join(', ')}` : ''
+      }`;
     }).join('\n\n');
 
-    const formattedFiles = fileReviews.map(review => {
-      const { file, codeQuality, testCoverage, refactorings } = review;
+    const formattedFiles = (fileReviews || []).map(review => {
+      const { file, codeQuality, testCoverage, refactoring } = review as any;
 
-      const issueList = codeQuality.issues.slice(0, 3)
-        .map(i => `  - Line ${i.line}: \`${i.severity}\` ${i.description}`)
+      const issueList = (codeQuality?.issues || []).slice(0, 3)
+        .map((i: any) => `   - Line ${i.line}: \`${i.severity}\` ${i.description}`)
         .join('\n');
 
-      const testList = testCoverage.untestedPaths.slice(0, 2)
-        .map(p => `  - \`${p.location}\` (${p.priority} priority)`)
+      const testList = (testCoverage?.untestedPaths || []).slice(0, 2)
+        .map((p: any) => `   - \`${p.location}\` (${p.priority} priority)`)
         .join('\n');
 
-      const refactorList = refactorings.suggestions.slice(0, 2)
-        .map(s => `  - **${s.type}**: ${s.description}`)
+      const refactorList = (refactoring?.suggestions || []).slice(0, 2)
+        .map((s: any) => `   - **${s.type}**: ${s.description}`)
         .join('\n');
 
       return `### 📄 \`${file}\`
 
-**Quality Score:** ${codeQuality.overallScore}/100 | **Coverage:** ~${testCoverage.coverageEstimate}%
+**Quality Score:** ${codeQuality?.overallScore || 0}/100 | **Coverage:** ~${testCoverage?.coveragePercent || 0}%
 
-#### Issues (${codeQuality.issues.length})
-${issueList || '  None found'}
-${codeQuality.issues.length > 3 ? `\n  *...and ${codeQuality.issues.length - 3} more*` : ''}
+#### Issues (${codeQuality?.issues?.length || 0})
+${issueList || '   None found'}
+${codeQuality?.issues?.length > 3 ? `\n   *...and ${codeQuality.issues.length - 3} more*` : ''}
 
-#### Test Gaps (${testCoverage.untestedPaths.length})
-${testList || '  None found'}
-${testCoverage.untestedPaths.length > 2 ? `\n  *...and ${testCoverage.untestedPaths.length - 2} more*` : ''}
+#### Test Gaps (${testCoverage?.untestedPaths?.length || 0})
+${testList || '   None found'}
+${testCoverage?.untestedPaths?.length > 2 ? `\n   *...and ${testCoverage.untestedPaths.length - 2} more*` : ''}
 
-#### Refactoring Opportunities (${refactorings.suggestions.length})
-${refactorList || '  None found'}
-${refactorings.suggestions.length > 2 ? `\n  *...and ${refactorings.suggestions.length - 2} more*` : ''}`;
+#### Refactoring Opportunities (${refactoring?.suggestions?.length || 0})
+${refactorList || '   None found'}
+${refactoring?.suggestions?.length > 2 ? `\n   *...and ${refactoring.suggestions.length - 2} more*` : ''}`;
     }).join('\n\n---\n\n');
+
+    const metadataTime = (report?.metadata as any)?.analyzedAt || (report?.metadata as any)?.timestamp || new Date().toISOString();
+    const metadataDuration = (report?.metadata as any)?.duration ?? (report?.metadata as any)?.durationMs ?? 0;
 
     return `# 🔍 Code Review Report
 
@@ -61,11 +91,11 @@ ${refactorings.suggestions.length > 2 ? `\n  *...and ${refactorings.suggestions.
 
 | Metric | Value |
 |--------|-------|
-| **Overall Score** | ${summary.overallScore}/100 |
-| **Files Reviewed** | ${summary.totalFiles} |
-| **Critical Issues** | ${summary.criticalIssues} |
-| **High Priority Tests** | ${summary.highPriorityTests} |
-| **Refactoring Opportunities** | ${summary.refactoringOpportunities} |
+| **Overall Score** | ${summary?.overallScore ?? 0}/100 |
+| **Files Reviewed** | ${summary?.totalFiles ?? 0} |
+| **Critical Issues** | ${summary?.criticalIssues ?? 0} |
+| **High Priority Tests** | ${summary?.highPriorityTests ?? 0} |
+| **Refactoring Opportunities** | ${summary?.refactoringOpportunities ?? 0} |
 
 ## 🎯 Top Recommendations
 
@@ -77,23 +107,25 @@ ${formattedFiles}
 
 ---
 
-*Generated at ${report.metadata.analyzedAt} • Duration: ${report.metadata.duration}ms*
-`;
+*Generated at ${metadataTime} • Duration: ${metadataDuration}ms*`;
   }
 
   /**
    * Generate an HTML report for web display
    */
   generateHTMLReport(report: ReviewReport): string {
-    const { summary, recommendations, metadata } = report;
+    const { summary, recommendations = [], metadata } = report || {};
 
-    const recList = recommendations.slice(0, 5).map(r => `
+    const recList = (recommendations || []).slice(0, 5).map(r => `
       <li class="rec-${r.priority}">
         <span class="priority">[${r.priority.toUpperCase()}]</span>
-        <strong>${r.category}</strong>: ${r.description}
-        <br><small>Files: ${r.files.join(', ')}</small>
+        <strong>${r.category || 'Recommendation'}</strong>: ${r.description}
+        ${r.files && r.files.length > 0 ? `<br><small>Files: ${r.files.join(', ')}</small>` : ''}
       </li>
     `).join('');
+
+    const metadataTime = (metadata as any)?.analyzedAt || (metadata as any)?.timestamp || new Date().toISOString();
+    const metadataDuration = (metadata as any)?.duration ?? (metadata as any)?.durationMs ?? 0;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -141,26 +173,26 @@ ${formattedFiles}
 </head>
 <body>
   <h1>🔍 Code Review Report</h1>
-  
+
   <div class="summary">
     <div class="metric">
-      <div class="metric-value">${summary.overallScore}</div>
+      <div class="metric-value">${summary?.overallScore ?? 0}</div>
       <div class="metric-label">Overall Score</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${summary.totalFiles}</div>
+      <div class="metric-value">${summary?.totalFiles ?? 0}</div>
       <div class="metric-label">Files Reviewed</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${summary.criticalIssues}</div>
+      <div class="metric-value">${summary?.criticalIssues ?? 0}</div>
       <div class="metric-label">Critical Issues</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${summary.highPriorityTests}</div>
+      <div class="metric-value">${summary?.highPriorityTests ?? 0}</div>
       <div class="metric-label">Tests Needed</div>
     </div>
     <div class="metric">
-      <div class="metric-value">${summary.refactoringOpportunities}</div>
+      <div class="metric-value">${summary?.refactoringOpportunities ?? 0}</div>
       <div class="metric-label">Refactorings</div>
     </div>
   </div>
@@ -169,7 +201,7 @@ ${formattedFiles}
   <ul>${recList || '<li>No recommendations at this time.</li>'}</ul>
 
   <footer>
-    Generated at ${metadata.analyzedAt} • Duration: ${metadata.duration}ms
+    Generated at ${metadataTime} • Duration: ${metadataDuration}ms
   </footer>
 </body>
 </html>`;

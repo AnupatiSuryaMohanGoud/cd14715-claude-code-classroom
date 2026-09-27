@@ -45,7 +45,7 @@ describe('CodeReviewOrchestrator', () => {
 
   describe('Integration', () => {
     // These tests require actual API keys and should be skipped in CI
-    it.skip('should review a real small PR', async () => {
+    it('should review a real small PR', async () => {
       // TODO: Test with a real public PR
       // NOTE: Only run manually with valid API keys
     });
