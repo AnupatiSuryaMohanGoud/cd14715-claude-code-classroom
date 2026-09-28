@@ -1,8 +1,6 @@
-import { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { refactoringPrompt } from '../prompts/refactoring-suggester.prompt.js';
-
-export const refactoringAgent: AgentDefinition = {
-  description: 'Recommends design patterns, modern code standards, dead code elimination, and refactoring opportunities.',
-  prompt: refactoringPrompt,
-  tools: ['github', 'Skill'],
+export const refactoringSuggester = {
+  description: 'Evaluates architectural patterns, code organization, and provides refactoring suggestions for maintainability.',
+  model: 'inherit',
+  tools: ['Read', 'Grep', 'Glob', 'Skill'],
+  prompt: `You are a software architecture and refactoring expert. Review the code changes for structural improvements, design patterns, modularity, and maintainability.`,
 };

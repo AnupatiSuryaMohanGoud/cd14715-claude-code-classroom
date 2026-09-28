@@ -1,8 +1,6 @@
-import { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
-import { testCoveragePrompt } from '../prompts/test-coverage-analyzer.prompt.js';
-
-export const testCoverageAgent: AgentDefinition = {
-  description: 'Identifies untested code paths, evaluates test gaps, and suggests actionable unit test cases.',
-  prompt: testCoveragePrompt,
-  tools: ['github', 'Skill'],
+export const testCoverageAgent = {
+  description: 'Analyzes test coverage, identifies untested paths, missing edge cases, and test quality in the pull request.',
+  model: 'inherit',
+  tools: ['Read', 'Grep', 'Glob', 'Skill'],
+  prompt: `You are a test coverage expert. Review the pull request files and tests to identify untested paths, missing unit tests, and edge cases that lack proper test coverage.`,
 };

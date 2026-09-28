@@ -1,8 +1,9 @@
 import * as AgentSDK from '@anthropic-ai/claude-agent-sdk';
-import { codeQualityAgent, testCoverageAgent, refactoringAgent } from './agents/index.js';
+import { codeQualityAgent, testCoverageAgent, refactoringSuggester as refactoringAgent } from './agents/index.js';
 import { orchestratorPrompt } from './prompts/orchestrator.prompt.js';
 import { ReviewReportSchema } from './utils/schemas.js';
 import { ReviewReport } from './types/report-types.js';
+import { mcpServersConfig } from './config/mcp.config.js';
 
 export interface OrchestratorOptions {
   rateLimit?: number;
@@ -23,7 +24,7 @@ export class CodeReviewOrchestrator {
   ): Promise<ReviewReport> {
     const prompt = `Review Pull Request #${prNumber} for repository ${owner}/${repo}. Generate a complete review report containing summary, pullRequest, fileReviews, recommendations, and metadata strictly following the output schema.`;
 
-    const queryFn = (AgentSDK as any).query || (AgentSDK as any).default?.query;
+    const queryFn = AgentSDK.query;
 
     if (typeof queryFn !== 'function') {
       throw new Error('Could not resolve query function from @anthropic-ai/claude-agent-sdk');
@@ -38,87 +39,41 @@ export class CodeReviewOrchestrator {
           'test-coverage-analyzer': testCoverageAgent,
           'refactoring-suggester': refactoringAgent,
         },
-        tools: ['github'],
-        outputSchema: ReviewReportSchema,
-        context: { owner, repo, prNumber },
+        mcpServers: mcpServersConfig,
+        allowedTools: [
+          'Task',
+          'mcp__github__get_pull_request',
+          'mcp__github__get_pull_request_files',
+          'mcp__eslint__lint_code'
+        ],
+        outputFormat: {
+          type: 'json_schema',
+          schema: {
+            type: 'object',
+            additionalProperties: true,
+          },
+        },
       } as any,
     });
 
     let structuredOutput: any = null;
-    let fullOutputText = '';
 
-    for await (const message of queryStream as any) {
-      if (message?.structuredOutput) {
-        structuredOutput = message.structuredOutput;
-      } else if (message?.type === 'result' && message?.data) {
-        structuredOutput = message.data;
-      } else if (message?.result) {
-        structuredOutput = message.result;
-      } else if (typeof message === 'string') {
-        fullOutputText += message;
-      } else if (message?.text) {
-        fullOutputText += message.text;
-      } else if (message?.content) {
-        fullOutputText += typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+    for await (const message of queryStream) {
+      if (message?.type === 'result' && (message as any).structured_output) {
+        structuredOutput = (message as any).structured_output;
       }
     }
 
-    if (!structuredOutput && fullOutputText) {
-      try {
-        const jsonMatch = fullOutputText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          structuredOutput = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.error('JSON parsing failed on accumulated stream output:', e);
-      }
-    }
-
-    // Fallback report matching the exact ReviewReport schema expectations
     if (!structuredOutput) {
-      structuredOutput = {
-        pullRequest: {
-          number: prNumber,
-          owner: owner,
-          repo: repo,
-        },
-        summary: {
-          overallScore: 85,
-          totalFiles: 3,
-          criticalIssues: 0,
-          highPriorityTests: 1,
-          refactoringOpportunities: 2,
-        },
-        fileReviews: [
-          {
-            filePath: 'src/index.ts',
-            status: 'reviewed',
-            score: 85,
-            issues: [
-              {
-                severity: 'medium',
-                category: 'Code Quality',
-                line: 10,
-                description: 'Ensure proper null checks and error handling across async operations.',
-                recommendation: 'Add try-catch blocks and explicit return types.',
-              },
-            ],
-          },
-        ],
-        recommendations: [
-          {
-            type: 'test_coverage',
-            priority: 'high',
-            description: 'Add unit tests for edge cases in orchestrator execution.',
-          },
-        ],
-        metadata: {
-          timestamp: new Date().toISOString(),
-          durationMs: 1200,
-        },
-      };
+      throw new Error('Orchestrator failed to produce structured output from the agent query.');
     }
 
-    return structuredOutput as unknown as ReviewReport;
+    const parsed = ReviewReportSchema.safeParse(structuredOutput);
+
+    if (!parsed.success) {
+      throw new Error(`Review report failed schema validation: ${parsed.error.message}`);
+    }
+
+    return parsed.data as unknown as ReviewReport;
   }
 }

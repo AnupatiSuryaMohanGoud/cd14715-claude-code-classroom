@@ -1,7 +1,33 @@
 {
-  "pr_number": 1,
-  "score": 85,
-  "status": "Passed",
-  "files_reviewed": 3,
-  "critical_issues": 0
+  "pullRequest": {
+    "number": 1,
+    "owner": "shinshin86",
+    "repo": "todo-opfs-sqlite"
+  },
+  "summary": {
+    "overallScore": 88,
+    "totalFiles": 4,
+    "criticalIssues": 0,
+    "highPriorityTests": 1,
+    "refactoringOpportunities": 2
+  },
+  "fileReviews": [
+    {
+      "filePath": "src/index.ts",
+      "status": "reviewed",
+      "score": 88,
+      "issues": []
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "code_quality",
+      "priority": "medium",
+      "description": "Add robust error handling for database transactions."
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-09-28T10:30:00.000Z",
+    "durationMs": 1500
+  }
 }

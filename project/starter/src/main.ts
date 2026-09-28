@@ -17,11 +17,13 @@ async function main() {
     process.exit(1);
   }
 
-  const prNumber = parseInt(prStr, 10);
-  if (isNaN(prNumber)) {
-    console.error('Error: <pr-number> must be a valid integer.');
+  // Strict validation: accept only positive integers (e.g. 1, 2, 3...)
+  if (!/^[1-9]\d*$/.test(prStr)) {
+    console.error('Error: PR number must be a valid positive integer.');
     process.exit(1);
   }
+
+  const prNumber = parseInt(prStr, 10);
 
   // 2. Validate authentication
   const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
@@ -58,8 +60,8 @@ async function main() {
 
     // 5. Generate formatted reports
     const reportGenerator = new ReportGenerator();
-const markdownReport = (reportGenerator as any).generateMarkdown(report);
-const htmlReport = (reportGenerator as any).generateHtml(report);
+    const markdownReport = reportGenerator.generateMarkdown(report);
+    const htmlReport = reportGenerator.generateHtml(report);
     const jsonReport = JSON.stringify(report, null, 2);
 
     // Ensure output directory exists
@@ -78,8 +80,8 @@ const htmlReport = (reportGenerator as any).generateHtml(report);
     console.log(`  - reports/${baseFilename}.json`);
     console.log(`  - reports/${baseFilename}.md`);
     console.log(`  - reports/${baseFilename}.html`);
-  } catch (error) {
-    console.error('Error generating review report:', error);
+  } catch (error: any) {
+    console.error(`Error generating review report: ${error.message}`);
     process.exit(1);
   }
 }
