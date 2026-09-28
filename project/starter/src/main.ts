@@ -1,87 +1,53 @@
-import * as dotenv from 'dotenv';
-import * as fs from 'fs';
-import * as path from 'path';
 import { CodeReviewOrchestrator } from './orchestrator.js';
 import { ReportGenerator } from './utils/report-generator.js';
-
-// Load environment variables
-dotenv.config();
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function main() {
-  const [owner, repo, prStr] = process.argv.slice(2);
-
-  // 1. Validate command-line arguments
-  if (!owner || !repo || !prStr) {
-    console.error('Error: Missing required arguments.');
-    console.error('Usage: npm run dev <owner> <repo> <pr-number>');
+  const args = process.argv.slice(2);
+  if (args.length < 3) {
+    console.error('Usage: npm run dev -- <owner> <repo> <prNumber>');
     process.exit(1);
   }
 
-  // Strict validation: accept only positive integers (e.g. 1, 2, 3...)
-  if (!/^[1-9]\d*$/.test(prStr)) {
-    console.error('Error: PR number must be a valid positive integer.');
+  const [owner, repo, prArg] = args;
+  if (!owner || !repo || !prArg) {
+    console.error('Error: Owner, repo, and PR number are all required.');
     process.exit(1);
   }
 
-  const prNumber = parseInt(prStr, 10);
-
-  // 2. Validate authentication
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-  const hasBedrock = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-
-  if (!hasAnthropic && !hasBedrock) {
-    console.error('Error: No authentication method configured.');
-    console.error('Provide either ANTHROPIC_API_KEY or AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).');
+  // Strict regex for positive integer validation (rejects 0, negative numbers, decimals, non-digits)
+  const prRegex = /^[1-9]\d*$/;
+  if (!prRegex.test(prArg)) {
+    console.error('Error: PR number must be a valid positive integer greater than 0.');
     process.exit(1);
   }
 
-  if (hasBedrock) {
-    if (!process.env.AWS_REGION) {
-      console.error('Error: AWS_REGION is required when using AWS Bedrock.');
-      process.exit(1);
-    }
-    console.log('Using AWS Bedrock authentication');
-  } else {
-    console.log('Using Anthropic API authentication');
-  }
-
-  // 3. Validate ANTHROPIC_MODEL environment variable
-  if (!process.env.ANTHROPIC_MODEL) {
-    console.error('Error: ANTHROPIC_MODEL environment variable is required.');
-    process.exit(1);
-  }
+  const prNumber = parseInt(prArg, 10);
 
   try {
-    // 4. Instantiate orchestrator
-    const orchestrator = new CodeReviewOrchestrator();
-
     console.log(`Starting code review for ${owner}/${repo} PR #${prNumber}...`);
+    const orchestrator = new CodeReviewOrchestrator();
     const report = await orchestrator.reviewPullRequest(owner, repo, prNumber);
 
-    // 5. Generate formatted reports
-    const reportGenerator = new ReportGenerator();
-    const markdownReport = reportGenerator.generateMarkdown(report);
-    const htmlReport = reportGenerator.generateHtml(report);
-    const jsonReport = JSON.stringify(report, null, 2);
+    const generator = new ReportGenerator();
+    const jsonOutput = generator.generateJSONReport(report);
+    const mdOutput = generator.generateMarkdownReport(report);
+    const htmlOutput = generator.generateHTMLReport(report);
 
-    // Ensure output directory exists
-    const reportsDir = path.join(process.cwd(), 'reports');
+    // Ensure reports directory exists and save files in standard pr-<number>-review.* format
+    const reportsDir = path.resolve(process.cwd(), 'reports');
     if (!fs.existsSync(reportsDir)) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
 
-    // Save report deliverables
-    const baseFilename = `pr-${prNumber}-review`;
-    fs.writeFileSync(path.join(reportsDir, `${baseFilename}.json`), jsonReport);
-    fs.writeFileSync(path.join(reportsDir, `${baseFilename}.md`), markdownReport);
-    fs.writeFileSync(path.join(reportsDir, `${baseFilename}.html`), htmlReport);
+    fs.writeFileSync(path.join(reportsDir, `pr-${prNumber}-review.json`), jsonOutput);
+    fs.writeFileSync(path.join(reportsDir, `pr-${prNumber}-review.md`), mdOutput);
+    fs.writeFileSync(path.join(reportsDir, `pr-${prNumber}-review.html`), htmlOutput);
 
-    console.log(`Successfully generated review reports for PR #${prNumber} in 'reports/' directory:`);
-    console.log(`  - reports/${baseFilename}.json`);
-    console.log(`  - reports/${baseFilename}.md`);
-    console.log(`  - reports/${baseFilename}.html`);
+    console.log('Review reports generated successfully under reports/');
   } catch (error: any) {
-    console.error(`Error generating review report: ${error.message}`);
+    console.error(`Error generating review report: ${error.message || error}`);
     process.exit(1);
   }
 }

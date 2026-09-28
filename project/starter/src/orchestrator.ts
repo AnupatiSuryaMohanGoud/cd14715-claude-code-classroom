@@ -22,10 +22,9 @@ export class CodeReviewOrchestrator {
     repo: string,
     prNumber: number
   ): Promise<ReviewReport> {
-    const prompt = `Review Pull Request #${prNumber} for repository ${owner}/${repo}. Generate a complete review report containing summary, pullRequest, fileReviews, recommendations, and metadata strictly following the output schema.`;
+    const prompt = `Review Pull Request #${prNumber} for repository ${owner}/${repo}. Generate a complete review report containing summary, owner, repo, prNumber, codeQuality, testCoverage, and refactoring strictly following the output schema.`;
 
     const queryFn = AgentSDK.query;
-
     if (typeof queryFn !== 'function') {
       throw new Error('Could not resolve query function from @anthropic-ai/claude-agent-sdk');
     }
@@ -50,7 +49,17 @@ export class CodeReviewOrchestrator {
           type: 'json_schema',
           schema: {
             type: 'object',
-            additionalProperties: true,
+            properties: {
+              owner: { type: 'string' },
+              repo: { type: 'string' },
+              prNumber: { type: 'number' },
+              overallScore: { type: 'number' },
+              summary: { type: 'string' },
+              codeQuality: { type: 'object' },
+              testCoverage: { type: 'object' },
+              refactoring: { type: 'object' }
+            },
+            required: ['owner', 'repo', 'prNumber', 'overallScore', 'summary', 'codeQuality', 'testCoverage', 'refactoring'],
           },
         },
       } as any,
